@@ -1,4 +1,7 @@
+streamlit
+pandas
 fastapi
 uvicorn
 pydantic
 python-dotenv
+google-generativeai
