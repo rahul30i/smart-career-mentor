@@ -1,32 +1,88 @@
 import streamlit as st
+import pandas as pd
 import os
+import google.generativeai as genai
 
-# 1. Force the page title immediately
-st.set_page_config(page_title="Debug Mode", layout="wide")
-st.title("✅ The App Updated Successfully!")
-st.write("If you can see this, your new code is live on the internet.")
+# --- PAGE CONFIGURATION ---
+st.set_page_config(page_title="Smart Career Mentor", page_icon="🎓", layout="wide")
 
-# 2. Status Check Section
-st.divider()
-st.subheader("🔍 System Diagnostics")
+# --- SAFETY CHECK: LOAD API KEY ---
+try:
+    api_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        st.error("🚨 Critical Error: Google API Key is missing.")
+        st.stop()
+    genai.configure(api_key=api_key)
+except Exception as e:
+    st.error(f"Connection Error: {e}")
+    st.stop()
 
-# Check API Key
-key = st.secrets.get("GOOGLE_API_KEY")
-if key:
-    st.success(f"API Key Found: {key[:5]}********")
-else:
-    st.error("❌ API Key is MISSING. Go to Settings -> Secrets.")
+# --- APP HEADER ---
+st.title("🎓 Smart Career Mentor")
+st.markdown("### Your AI-Powered Path to a New Career")
+st.write("Enter a role (e.g., *'AI Engineer'*, *'Product Manager'*) to get a university-grade roadmap.")
 
-# Check CSV File
-if os.path.exists("career_data.csv"):
-    st.success("✅ 'career_data.csv' file found.")
-else:
-    st.warning("⚠️ 'career_data.csv' not found (App will use AI only).")
+# --- SIDEBAR: SYSTEM STATUS ---
+with st.sidebar:
+    st.header("System Status")
+    st.success("✅ AI Connected")
+    if os.path.exists("career_data.csv"):
+        st.success("✅ Database Loaded")
+    else:
+        st.warning("⚠️ Database Missing (Using AI Only)")
+    st.info("Built with Google Gemini + Streamlit")
 
-# 3. The Search Bar (Guaranteed to show)
-st.divider()
-st.subheader("🚀 Career Search")
-query = st.text_input("Enter a role:", placeholder="Try 'Data Scientist'")
+# --- MAIN INPUT ---
+user_role = st.text_input("What role do you want to target?", placeholder="e.g. Full Stack Developer")
 
-if query and key:
-    st.info(f"You searched for: {query}. (AI generation would happen here)")
+# --- THE MENTOR LOGIC ---
+if user_role:
+    with st.spinner("🧠 Designing your curriculum... (This takes about 10 seconds)"):
+        try:
+            # 1. THE PROMPT
+            prompt = f"""
+            Act as a Senior Career Mentor. The user wants to become a: {user_role}.
+            
+            Generate a strict, structured roadmap in this exact format:
+            
+            SECTION 1: VISUAL TIMELINE
+            Create a Mermaid.js chart code (wrapped in ```mermaid) showing a 3-phase timeline (Foundations -> Advanced -> Job Ready).
+            
+            SECTION 2: THE SYLLABUS
+            - Phase 1 (Weeks 1-4): List 3 core topics.
+            - Phase 2 (Weeks 5-12): List 3 advanced skills.
+            - Phase 3 (Weeks 13+): List 2 job-ready projects.
+            
+            SECTION 3: RESOURCES
+            - Best Free Course: (Name & Description)
+            - Best Paid Course: (Name & Description)
+            
+            SECTION 4: GETTING HIRED
+            - 5 Keywords for Resume:
+            - 1 Insider Tip:
+            """
+            
+            # 2. GET AI RESPONSE
+            model = genai.GenerativeModel('gemini-pro')
+            response = model.generate_content(prompt)
+            content = response.text
+            
+            # 3. DISPLAY RESULT
+            st.divider()
+            
+            # Extract Mermaid Code for Visuals
+            if "```mermaid" in content:
+                parts = content.split("```mermaid")
+                graph_code = parts[1].split("```")[0]
+                st.subheader("🗺️ Your Career Timeline")
+                st.markdown(f"```mermaid\n{graph_code}\n```")
+                
+                # Show the rest of the text
+                st.subheader("📝 Detailed Guide")
+                text_content = parts[0] + parts[2] if len(parts) > 2 else content.replace("```mermaid" + graph_code + "```", "")
+                st.markdown(text_content)
+            else:
+                st.markdown(content)
+                
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
