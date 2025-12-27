@@ -24,12 +24,6 @@ st.write("Enter a role (e.g., *'AI Engineer'*, *'Product Manager'*) to get a uni
 
 # --- SIDEBAR: SYSTEM STATUS ---
 with st.sidebar:
-    st.header("System Status")
-    st.success("✅ AI Connected")
-    if os.path.exists("career_data.csv"):
-        st.success("✅ Database Loaded")
-    else:
-        st.warning("⚠️ Database Missing (Using AI Only)")
     st.info("Built with Google Gemini + Streamlit")
 
 # --- MAIN INPUT ---
@@ -63,7 +57,7 @@ if user_role:
             """
             
             # 2. GET AI RESPONSE
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(prompt)
             content = response.text
             
