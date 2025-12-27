@@ -39,7 +39,6 @@ st.write("Enter a role (e.g., *'AI Engineer'*, *'Product Manager'*) to get a uni
 
 # --- SIDEBAR status ---
 with st.sidebar:
-    st.info("Built with Google Gemini + Streamlit")
     active_model = get_gemini_model()
     if active_model:
         st.success(f"✅ Connected to: {active_model}")
