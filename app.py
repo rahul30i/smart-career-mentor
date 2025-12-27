@@ -26,6 +26,21 @@ st.write("Enter a role (e.g., *'AI Engineer'*, *'Product Manager'*) to get a uni
 with st.sidebar:
     st.info("Built with Google Gemini + Streamlit")
 
+# --- HELPER: FIND AVAILABLE MODEL ---
+def get_available_model():
+    """
+    Dynamically finds a supported model to avoid 404 errors.
+    Prioritizes 'gemini' models that support 'generateContent'.
+    """
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                if 'gemini' in m.name:
+                    return m.name
+        return "gemini-pro" # Fallback
+    except Exception as e:
+        return "gemini-pro" # Fallback if list_models fails
+
 # --- MAIN INPUT ---
 user_role = st.text_input("What role do you want to target?", placeholder="e.g. Full Stack Developer")
 
@@ -33,7 +48,14 @@ user_role = st.text_input("What role do you want to target?", placeholder="e.g. 
 if user_role:
     with st.spinner("🧠 Designing your curriculum... (This takes about 10 seconds)"):
         try:
-            # 1. THE PROMPT
+            # 1. DYNAMICALLY FIND MODEL
+            model_name = get_available_model()
+            
+            # Show used model in sidebar (User Request)
+            with st.sidebar:
+                st.success(f"Using Model: {model_name}")
+
+            # 2. THE PROMPT
             prompt = f"""
             Act as a Senior Career Mentor. The user wants to become a: {user_role}.
             
@@ -56,8 +78,8 @@ if user_role:
             - 1 Insider Tip:
             """
             
-            # 2. GET AI RESPONSE
-            model = genai.GenerativeModel('gemini-pro')
+            # 3. GET AI RESPONSE
+            model = genai.GenerativeModel(model_name)
             response = model.generate_content(prompt)
             content = response.text
             
