@@ -1,7 +1,6 @@
 import streamlit as st
-import pandas as pd
-import os
 import google.generativeai as genai
+import os
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="Smart Career Mentor", page_icon="🎓", layout="wide")
@@ -25,7 +24,6 @@ def get_gemini_model():
     Returns the exact model name.
     """
     try:
-        available_models = []
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
                 if 'gemini' in m.name:
@@ -39,18 +37,15 @@ st.title("🎓 Smart Career Mentor")
 st.markdown("### Your AI-Powered Path to a New Career")
 st.write("Enter a role (e.g., *'AI Engineer'*, *'Product Manager'*) to get a university-grade roadmap.")
 
-# --- SIDEBAR: SYSTEM & MODEL STATUS ---
+# --- SIDEBAR status ---
 with st.sidebar:
     st.info("Built with Google Gemini + Streamlit")
-    
-    # Run Smart Model Detection
     active_model = get_gemini_model()
-    
     if active_model:
         st.success(f"✅ Connected to: {active_model}")
     else:
         st.error("❌ No Gemini models found")
-        st.stop() # Stop execution if no model is found
+        st.stop()
 
 # --- MAIN INPUT ---
 user_role = st.text_input("What role do you want to target?", placeholder="e.g. Full Stack Developer")
@@ -59,27 +54,35 @@ user_role = st.text_input("What role do you want to target?", placeholder="e.g. 
 if user_role:
     with st.spinner("🧠 Designing your curriculum... (This takes about 10 seconds)"):
         try:
-            # 1. THE PROMPT
+            # 1. ENHANCED PROMPT
             prompt = f"""
-            Act as a Senior Career Mentor. The user wants to become a: {user_role}.
+            Act as a Senior Career Coach. The user wants to become a: {user_role}.
             
-            Generate a strict, structured roadmap in this exact format:
+            Generate a detailed, strict mentorship guide in this exact structure using Markdown headers:
             
-            SECTION 1: VISUAL TIMELINE
-            Create a Mermaid.js chart code (wrapped in ```mermaid) showing a 3-phase timeline (Foundations -> Advanced -> Job Ready).
+            ## 🗺️ Visual Timeline
+            Provide a Mermaid.js chart code (wrapped in ```mermaid ... ```) for a 6-month timeline (Foundations -> Deep Dive -> Job Ready).
             
-            SECTION 2: THE SYLLABUS
-            - Phase 1 (Weeks 1-4): List 3 core topics.
-            - Phase 2 (Weeks 5-12): List 3 advanced skills.
-            - Phase 3 (Weeks 13+): List 2 job-ready projects.
+            ## 📚 Learning Path
+            - Phase 1: Foundations (Key concepts and theory)
+            - Phase 2: Deep Dive (Advanced skills and stacks)
+            - Phase 3: Mastery (Real-world application)
             
-            SECTION 3: RESOURCES
-            - Best Free Course: (Name & Description)
-            - Best Paid Course: (Name & Description)
+            ## 🛠️ Portfolio Projects
+            List 2 distinct real-world projects. For each, specify:
+            - Project Name
+            - Tech Stack
+            - Key Features
             
-            SECTION 4: GETTING HIRED
-            - 5 Keywords for Resume:
-            - 1 Insider Tip:
+            ## 🔗 Best Resources
+            - 1 Free Course (Name & specific URL if known or description)
+            - 1 Paid Course (Name & Platform)
+            - 1 Recommended YouTube Channel
+            
+            ## 💼 Getting Hired
+            - Where to apply (platforms)
+            - 5 Keyword tags for Resume
+            - 1 Crucial Interview Tip
             """
             
             # 2. GET AI RESPONSE
@@ -87,22 +90,57 @@ if user_role:
             response = model.generate_content(prompt)
             content = response.text
             
-            # 3. DISPLAY RESULT
+            # 3. ORGANIZE OUTPUT INTO TABS
             st.divider()
             
-            # Extract Mermaid Code for Visuals
-            if "```mermaid" in content:
-                parts = content.split("```mermaid")
-                graph_code = parts[1].split("```")[0]
-                st.subheader("🗺️ Your Career Timeline")
-                st.markdown(f"```mermaid\n{graph_code}\n```")
+            # Create Tabs
+            tab1, tab2, tab3, tab4 = st.tabs(["Roadmap", "Projects", "Resources", "Jobs"])
+            
+            # Helper to extract sections based on headers
+            def extract_section(text, header, next_header=None):
+                try:
+                    start = text.find(header)
+                    if start == -1: return "Section not found."
+                    if next_header:
+                        end = text.find(next_header)
+                        if end == -1: return text[start:] # If next header not found, go to end
+                        return text[start:end]
+                    return text[start:]
+                except:
+                    return "Error parsing section."
+
+            # Tab 1: Roadmap (Visual + Learning Path)
+            with tab1:
+                # Extract and Render Mermaid
+                timeline_section = extract_section(content, "## 🗺️ Visual Timeline", "## 📚 Learning Path")
+                if "```mermaid" in timeline_section:
+                    try:
+                        # Extract just the code block
+                        parts = timeline_section.split("```mermaid")
+                        code_block = parts[1].split("```")[0]
+                        st.subheader("🗺️ Visual Timeline")
+                        st.markdown(f"```mermaid\n{code_block}\n```")
+                    except:
+                        st.error("Could not render timeline.")
                 
-                # Show the rest of the text
-                st.subheader("📝 Detailed Guide")
-                text_content = parts[0] + parts[2] if len(parts) > 2 else content.replace("```mermaid" + graph_code + "```", "")
-                st.markdown(text_content)
-            else:
-                st.markdown(content)
-                
+                # Extract and Render Learning Path
+                learning_path = extract_section(content, "## 📚 Learning Path", "## 🛠️ Portfolio Projects")
+                st.markdown(learning_path)
+
+            # Tab 2: Projects
+            with tab2:
+                projects = extract_section(content, "## 🛠️ Portfolio Projects", "## 🔗 Best Resources")
+                st.markdown(projects)
+
+            # Tab 3: Resources
+            with tab3:
+                resources = extract_section(content, "## 🔗 Best Resources", "## 💼 Getting Hired")
+                st.markdown(resources)
+
+            # Tab 4: Jobs
+            with tab4:
+                jobs = extract_section(content, "## 💼 Getting Hired")
+                st.markdown(jobs)
+
         except Exception as e:
             st.error(f"An error occurred: {e}")
